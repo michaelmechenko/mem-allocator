@@ -4,23 +4,14 @@
 #include "linkedlist.h"
 #include "malloc.h"
 #include <assert.h>
-#include <pthread.h>
 #include <string.h>
-#include <sys/mman.h>
 #include <unistd.h>
-
-// define page size
-#define PAGE_SIZE sysconf(_SC_PAGE_SIZE)
-
-// define a global mutex
-pthread_mutex_t malloc_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // global variable for first block of mem
 mem_block_t *head = NULL;
 
 void *mymalloc(size_t s) {
-  assert(s > 0);                     // verify size > 0
-  pthread_mutex_lock(&malloc_mutex); // create mutex lock
+  assert(s > 0); // verify size > 0
 
   // initialize pointers for list
   mem_block_t *current = head;
@@ -51,18 +42,10 @@ void *mymalloc(size_t s) {
   size_t total_size = s + sizeof(mem_block_t);
 
   // request more memory
-  // task 1: use mmap instead of sbrk
-  mem_block_t *block;
-  if (total_size < PAGE_SIZE) {
-    block = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE,
-                 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  } else {
-    size_t pages = (total_size + PAGE_SIZE - 1) / PAGE_SIZE;
-    block = mmap(NULL, pages * PAGE_SIZE, PROT_READ | PROT_WRITE,
-                 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  }
+  mem_block_t *block = sbrk(total_size);
 
-  if (block == MAP_FAILED) {
+  if (block == (void *)-1) {
+    // check for failed syscall
     return NULL;
   }
 
@@ -79,16 +62,13 @@ void *mymalloc(size_t s) {
   }
 
   debug_printf("Malloc %zu bytes\n", s);
-
-  // return usable memory address & unlock mutex
-  pthread_mutex_unlock(&malloc_mutex);
+  // return usable memory address
   return (char *)block + sizeof(mem_block_t);
 }
 
 void *mycalloc(size_t nmemb, size_t s) {
-  // verify inputs > 0 & initiate mutexes
+  // verify inputs > 0
   assert(nmemb > 0 && s > 0);
-  pthread_mutex_lock(&malloc_mutex);
 
   // calculate total size
   size_t total_size = nmemb * s;
@@ -102,8 +82,7 @@ void *mycalloc(size_t nmemb, size_t s) {
   }
   debug_printf("Calloc %zu bytes\n", total_size);
 
-  // return allocated memory & unlock mutex
-  pthread_mutex_unlock(&malloc_mutex);
+  // return allocated memory
   return ptr;
 }
 
@@ -126,21 +105,11 @@ void coalesce_free_blocks() {
 void myfree(void *ptr) {
   assert(ptr != NULL);
 
-  // initiate mutex lock
-  pthread_mutex_lock(&malloc_mutex);
-
   // get necessary data
   mem_block_t *block = (mem_block_t *)((char *)ptr - sizeof(mem_block_t));
 
-  // mark block as free and coalesce or unmap
-  if (block->size >= PAGE_SIZE) {
-    munmap(block, block->size + sizeof(mem_block_t));
-  } else {
-    block->free = 1;
-    coalesce_free_blocks();
-  }
+  // mark block as free and coalesce
+  block->free = 1;
+  coalesce_free_blocks();
   debug_printf("Freed %zu bytes\n", block->size);
-
-  // unlock mutex
-  pthread_mutex_unlock(&malloc_mutex);
 }

@@ -8,65 +8,70 @@
 #include <stdlib.h>
 #endif
 
-#include <pthread.h>
 #include <stdio.h>
 #include <string.h>
 
 int allones = ~0; // allones for int
 
-void *threaded_testmalloc(void *size) {
-  int sz = *(int *)size;
-  int *data = (int *)malloc(sz);
+int *testmalloc(int size) {
+  int *data = (int *) malloc(size);
   if (data != NULL) {
-    memset((void *)data, allones, sz);
+    // void *memset(void *s, int c, size_t n);
+    memset((void *) data, allones, size);
   }
-  pthread_exit(data);
+  return data;
 }
 
 int main() {
   int i;
-  pthread_t threads[8];
-  int sizes[8] = {8, 16, 32, 64, 128, 256, 512, 1024};
 
-  fprintf(stderr, "============================================================"
-                  "===========\n"
-                  "Allocator stress test using pthreads and mmap. There "
-                  "shouldn't be more than 64 calls to sbrk in\n"
-                  "the worst case scenario.\n"
-                  "============================================================"
-                  "===========\n");
+  fprintf(stderr, 
+      "=======================================================================\n"
+      "Allocator stress test. There shouldn't be more than 64 calls to sbrk in\n"
+      "the worst case scenario.\n"
+      "=======================================================================\n");
 
   for (i = 0; i < 1000; i++) {
-    for (int j = 0; j < 8; j++) {
-      pthread_create(&threads[j], NULL, threaded_testmalloc, (void *)&sizes[j]);
-    }
+    int *data = (int *) testmalloc(8);
+    int *data1 = (int *) testmalloc(16);
+    int *data2 = (int *) testmalloc(32);
+    int *data3 = (int *) testmalloc(64);
+    int *data4 = (int *) testmalloc(128);
+    int *data5 = (int *) testmalloc(256);
+    int *data6 = (int *) testmalloc(512);
+    int *data7 = (int *) testmalloc(1024);
 
-    for (int j = 0; j < 8; j++) {
-      int *data;
-      pthread_join(threads[j], (void **)&data);
-      free(data);
-    }
+    free(data);
+    free(data1);
+    free(data2);
+    free(data3);
+    free(data4);
+    free(data5);
+    free(data6);
+    free(data7);
   }
-  fprintf(
-      stderr,
-      "malloc small to large, free small to large %d times using pthreads.\n",
-      i);
+  fprintf(stderr, "malloc small to large, free small to large %d times.\n", i);
 
   for (i = 0; i < 1000; i++) {
-    for (int j = 0; j < 8; j++) {
-      pthread_create(&threads[j], NULL, threaded_testmalloc, (void *)&sizes[j]);
-    }
+    int *data = (int *) testmalloc(8);
+    int *data1 = (int *) testmalloc(16);
+    int *data2 = (int *) testmalloc(32);
+    int *data3 = (int *) testmalloc(64);
+    int *data4 = (int *) testmalloc(128);
+    int *data5 = (int *) testmalloc(256);
+    int *data6 = (int *) testmalloc(512);
+    int *data7 = (int *) testmalloc(1024);
 
-    for (int j = 7; j >= 0; j--) {
-      int *data;
-      pthread_join(threads[j], (void **)&data);
-      free(data);
-    }
+    free(data7);
+    free(data6);
+    free(data5);
+    free(data4);
+    free(data3);
+    free(data2);
+    free(data1);
+    free(data);
   }
-  fprintf(
-      stderr,
-      "malloc small to large, free large to small %d times using pthreads.\n",
-      i);
+  fprintf(stderr, "malloc small to large, free large to small %d times.\n", i);
 
   return 0;
 }

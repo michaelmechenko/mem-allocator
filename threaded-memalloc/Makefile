@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g -std=gnu11 -I. -Werror
+CFLAGS=-g -std=gnu11 -I. -Werror -pthread
 BINS=mymalloc
 TESTS=$(foreach n,1 2 3 4 5 6 7,tests/test$(n) )
 DEMO_TESTS=$(foreach n,1 2 3 4 5 6 7,tests/demo_test$(n) )
@@ -14,8 +14,8 @@ endef
 all: mymalloc.o
 
 help:
-	@echo \
-		"Available make targets: \n\
+        @echo \
+                "Available make targets: \n\
     make          Compile mymalloc.c to object file, mymalloc.o\n\
     make test     Compile and run tests in the tests directory with mymalloc.\n\
     make demo     Compile and run tests in the tests directory with standard malloc.\n\
@@ -28,9 +28,9 @@ $(BINS): %: %.o
 %.o : %.c
 	$(CC) $(CFLAGS) -c $^ -o $@
 
-$(TESTS): CFLAGS:=$(CFLAGS) -Wl,--wrap=sbrk
+$(TESTS): CFLAGS:=$(CFLAGS)
 
-$(TESTS): %: %.o mymalloc.o sbrk_stats.o
+$(TESTS): %: %.o mymalloc.o
 	$(CC) $(CFLAGS) $^ -o $@
 
 test: clean_tests $(TESTS)

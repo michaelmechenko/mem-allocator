@@ -9,49 +9,50 @@ extern int rand(void);
 #include <stdlib.h>
 #endif
 
+#include <pthread.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/mman.h>
 
 int allones = ~0; // allones for int
 
-int *testmalloc(int size) {
-  int *data = (int *) malloc(size);
-  if (data != NULL) {
-    // void *memset(void *s, int c, size_t n);
-    memset((void *) data, allones, size);
+void *threaded_testmalloc(void *size) {
+  int actual_size = *((int *)size);
+  void *data = mmap(NULL, actual_size, PROT_READ | PROT_WRITE,
+                    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (data != MAP_FAILED) {
+    memset(data, allones, actual_size);
   }
   return data;
 }
 
 int main() {
-  fprintf(stderr, 
-      "=======================================================================\n"
+  fprintf(
+      stderr,
+      "======================================================================="
+      "\n"
       "Allocator stress test with random sizes from the set {1, 8, 8^2, ..., \n"
       " 8^19}. This stress test might get aborted by the OS if your allocator\n"
       "doesn't manage memory properly, because the VM will simply run out of\n"
       "memory.\n"
-      "=======================================================================\n");
+      "======================================================================="
+      "\n");
 
+  pthread_t threads[8];
+  int sizes[8];
   int i;
 
   for (i = 0; i < 100001; i++) {
-    int *data = (int *) testmalloc(8 << (rand() % 20));
-    int *data1 = (int *) testmalloc(8 << (rand() % 20));
-    int *data2 = (int *) testmalloc(8 << (rand() % 20));
-    int *data3 = (int *) testmalloc(8 << (rand() % 20));
-    int *data4 = (int *) testmalloc(8 << (rand() % 20));
-    int *data5 = (int *) testmalloc(8 << (rand() % 20));
-    int *data6 = (int *) testmalloc(8 << (rand() % 20));
-    int *data7 = (int *) testmalloc(8 << (rand() % 20));
+    for (int j = 0; j < 8; j++) {
+      sizes[j] = 8 << (rand() % 20);
+      pthread_create(&threads[j], NULL, threaded_testmalloc, &sizes[j]);
+    }
 
-    free(data);
-    free(data1);
-    free(data2);
-    free(data3);
-    free(data4);
-    free(data5);
-    free(data6);
-    free(data7);
+    for (int j = 0; j < 8; j++) {
+      void *data;
+      pthread_join(threads[j], &data);
+      munmap(data, sizes[j]);
+    }
 
     // if ((i%100)==0) fprintf(stderr, "%d...", i);
   }
@@ -59,23 +60,16 @@ int main() {
           i);
 
   for (i = 0; i < 100001; i++) {
-    int *data = (int *) testmalloc(8 << (rand() % 20));
-    int *data1 = (int *) testmalloc(8 << (rand() % 20));
-    int *data2 = (int *) testmalloc(8 << (rand() % 20));
-    int *data3 = (int *) testmalloc(8 << (rand() % 20));
-    int *data4 = (int *) testmalloc(8 << (rand() % 20));
-    int *data5 = (int *) testmalloc(8 << (rand() % 20));
-    int *data6 = (int *) testmalloc(8 << (rand() % 20));
-    int *data7 = (int *) testmalloc(8 << (rand() % 20));
+    for (int j = 0; j < 8; j++) {
+      sizes[j] = 8 << (rand() % 20);
+      pthread_create(&threads[j], NULL, threaded_testmalloc, &sizes[j]);
+    }
 
-    free(data7);
-    free(data6);
-    free(data5);
-    free(data4);
-    free(data3);
-    free(data2);
-    free(data1);
-    free(data);
+    for (int j = 7; j >= 0; j--) {
+      void *data;
+      pthread_join(threads[j], &data);
+      munmap(data, sizes[j]);
+    }
 
     // if ((i%100)==0) fprintf(stderr, "%d...", i);
   }
